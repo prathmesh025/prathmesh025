@@ -1,0 +1,41 @@
+name: Live profile sync
+
+on:
+  schedule:
+    - cron: "0 */6 * * *"   # every 6 hours — keeps both the game and activity list fresh
+  workflow_dispatch: {}      # manual "Run workflow" button
+  push:
+    branches:
+      - main
+
+jobs:
+  generate:
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 1. Generate the Galaga contribution-graph game
+      - name: Generate arcade contribution graph SVGs
+        uses: abozanona/pacman-contribution-graph@main
+        with:
+          github_user_name: ${{ github.repository_owner }}
+          games: 'galaga'
+
+      - name: Push game SVGs to output branch
+        uses: crazy-max/ghaction-github-pages@v4
+        with:
+          target_branch: output
+          build_dir: dist
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # 2. Pull real, live commit activity across your repos into the README
+      - name: Update latest activity section
+        uses: jamesgeorge007/github-activity-readme@master
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMIT_MSG: "chore: sync latest activity [skip ci]"
